@@ -20,11 +20,13 @@
 const print = @import("std").debug.print;
 
 pub fn main() void {
-    const 55_cows: i32 = 55;
-    const isn't true: bool = false;
+    const @"55_cows": i32 = 55;
+    const @"isn't true": bool = false;
+    // const @"say \"hello\" to out prime minister": bool = true;
 
     print("Sweet freedom: {}, {}.\n", .{
-        55_cows,
-        isn't true,
+        @"55_cows",
+        @"isn't true",
+        // @"say \"hello\" to out prime minister",
     });
 }
