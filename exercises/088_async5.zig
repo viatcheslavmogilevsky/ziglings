@@ -36,7 +36,11 @@ const print = @import("std").debug.print;
 pub fn main() void {
     var myframe = async getPageTitle("http://example.com");
 
-    var value = ???
+    // this:
+    // var value = await myframe;
+    // is not valid, because: "local variable is never mutated"
+
+    const value = await myframe;
 
     print("{s}\n", .{value});
 }

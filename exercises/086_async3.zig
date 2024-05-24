@@ -11,9 +11,20 @@ const print = @import("std").debug.print;
 
 pub fn main() void {
     const n = 5;
-    var foo_frame = async foo(n);
+    var foo_frame = async foo(n); // prints 5 and suspends
 
-    ???
+    // Simple, but dull:
+    // resume foo_frame; // prints 4 and suspends
+    // resume foo_frame; // prints 3 and suspends
+    // resume foo_frame; // prints 2 and suspends
+    // resume foo_frame; // prints 1 and suspends
+    // is that it?
+
+    // Sophisticated, but short
+    inline for (0..4) |_| {
+        resume foo_frame;
+        //print("{any}\n", .{n});
+    }
 
     print("\n", .{});
 }
