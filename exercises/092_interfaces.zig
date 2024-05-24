@@ -79,10 +79,17 @@ const Grasshopper = struct {
     }
 };
 
+const Wasp = struct {
+    bites_made: u16,
+
+    // oops no print!
+};
+
 const Insect = union(enum) {
     ant: Ant,
     bee: Bee,
     grasshopper: Grasshopper,
+    // wasp: Wasp, // gives compliation error :)
 
     // Thanks to 'inline else', we can think of this print() as
     // being an interface method. Any member of this union with
@@ -106,7 +113,7 @@ pub fn main() !void {
     for (my_insects) |insect| {
         // Almost done! We want to print() each insect with a
         // single method call here.
-        ???
+        insect.print();
     }
 }
 
