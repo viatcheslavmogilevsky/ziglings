@@ -15,7 +15,7 @@ const print = std.debug.print;
 //     1) Getting Started
 //     2) Version Changes
 comptime {
-    const required_zig = "0.12.0-dev.3518";
+    const required_zig = "0.14.0-dev.42";
     const current_zig = builtin.zig_version;
     const min_zig = std.SemanticVersion.parse(required_zig) catch unreachable;
     if (current_zig.order(min_zig) == .lt) {
@@ -103,6 +103,8 @@ const Mode = enum {
     normal,
     /// Named build mode: `zig build -Dn=n`
     named,
+    /// Random build mode: `zig build -Drandom`
+    random,
 };
 
 pub const logo =
@@ -158,6 +160,7 @@ pub fn build(b: *Build) !void {
         false;
     const override_healed_path = b.option([]const u8, "healed-path", "Override healed path");
     const exno: ?usize = b.option(usize, "n", "Select exercise");
+    const rand: ?bool = b.option(bool, "random", "Select random exercise");
 
     const sep = std.fs.path.sep_str;
     const healed_path = if (override_healed_path) |path|
@@ -188,6 +191,33 @@ pub fn build(b: *Build) !void {
 
         zigling_step.dependOn(&verify_step.step);
 
+        return;
+    }
+
+    if (rand) |_| {
+        // Random build mode: verifies one random exercise.
+        // like for 'exno' but chooses a random exersise number.
+        print("work in progress: check a random exercise\n", .{});
+
+        var prng = std.Random.DefaultPrng.init(blk: {
+            var seed: u64 = undefined;
+            try std.posix.getrandom(std.mem.asBytes(&seed));
+            break :blk seed;
+        });
+        const rnd = prng.random();
+        const ex = exercises[rnd.intRangeLessThan(usize, 0, exercises.len)];
+
+        print("random exercise: {s}\n", .{ex.main_file});
+
+        const zigling_step = b.step(
+            "random",
+            b.fmt("Check the solution of {s}", .{ex.main_file}),
+        );
+        b.default_step = zigling_step;
+        zigling_step.dependOn(&header_step.step);
+        const verify_step = ZiglingStep.create(b, ex, work_path, .random);
+        verify_step.step.dependOn(&header_step.step);
+        zigling_step.dependOn(&verify_step.step);
         return;
     }
 
@@ -244,7 +274,7 @@ const ZiglingStep = struct {
         return self;
     }
 
-    fn make(step: *Step, prog_node: *std.Progress.Node) !void {
+    fn make(step: *Step, prog_node: std.Progress.Node) !void {
         // NOTE: Using exit code 2 will prevent the Zig compiler to print the message:
         // "error: the following build command failed with exit code 1:..."
         const self: *ZiglingStep = @alignCast(@fieldParentPtr("step", step));
@@ -279,7 +309,7 @@ const ZiglingStep = struct {
         self.printErrors();
     }
 
-    fn run(self: *ZiglingStep, exe_path: []const u8, _: *std.Progress.Node) !void {
+    fn run(self: *ZiglingStep, exe_path: []const u8, _: std.Progress.Node) !void {
         resetLine();
         print("Checking: {s}\n", .{self.exercise.main_file});
 
@@ -375,7 +405,7 @@ const ZiglingStep = struct {
         print("{s}PASSED{s}\n\n", .{ green_text, reset_text });
     }
 
-    fn compile(self: *ZiglingStep, prog_node: *std.Progress.Node) !?[]const u8 {
+    fn compile(self: *ZiglingStep, prog_node: std.Progress.Node) !?[]const u8 {
         print("Compiling: {s}\n", .{self.exercise.main_file});
 
         const b = self.step.owner;
@@ -417,6 +447,7 @@ const ZiglingStep = struct {
         const cmd = switch (self.mode) {
             .normal => "zig build",
             .named => b.fmt("zig build -Dn={s}", .{key}),
+            .random => "zig build -Drandom",
         };
 
         print("\n{s}Edit exercises/{s} and run '{s}' again.{s}\n", .{
@@ -459,7 +490,7 @@ fn resetLine() void {
 pub fn trimLines(allocator: std.mem.Allocator, buf: []const u8) ![]const u8 {
     var list = try std.ArrayList(u8).initCapacity(allocator, buf.len);
 
-    var iter = std.mem.split(u8, buf, " \n");
+    var iter = std.mem.splitSequence(u8, buf, " \n");
     while (iter.next()) |line| {
         // TODO: trimming CR characters is probably not necessary.
         const data = std.mem.trimRight(u8, line, " \r");
@@ -494,7 +525,7 @@ const PrintStep = struct {
         return self;
     }
 
-    fn make(step: *Step, _: *std.Progress.Node) !void {
+    fn make(step: *Step, _: std.Progress.Node) !void {
         const self: *PrintStep = @alignCast(@fieldParentPtr("step", step));
         print("{s}", .{self.message});
     }
@@ -521,7 +552,7 @@ fn validate_exercises() bool {
             return false;
         }
 
-        var iter = std.mem.split(u8, ex.output, "\n");
+        var iter = std.mem.splitScalar(u8, ex.output, '\n');
         while (iter.next()) |line| {
             const output = std.mem.trimRight(u8, line, " \r");
             if (output.len != line.len) {
