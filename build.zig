@@ -15,7 +15,7 @@ const print = std.debug.print;
 //     1) Getting Started
 //     2) Version Changes
 comptime {
-    const required_zig = "0.14.0-dev.42";
+    const required_zig = "0.14.0-dev.839";
     const current_zig = builtin.zig_version;
     const min_zig = std.SemanticVersion.parse(required_zig) catch unreachable;
     if (current_zig.order(min_zig) == .lt) {
@@ -161,6 +161,7 @@ pub fn build(b: *Build) !void {
     const override_healed_path = b.option([]const u8, "healed-path", "Override healed path");
     const exno: ?usize = b.option(usize, "n", "Select exercise");
     const rand: ?bool = b.option(bool, "random", "Select random exercise");
+    const start: ?usize = b.option(usize, "s", "Start at exercise");
 
     const sep = std.fs.path.sep_str;
     const healed_path = if (override_healed_path) |path|
@@ -221,6 +222,26 @@ pub fn build(b: *Build) !void {
         return;
     }
 
+    if (start) |s| {
+        if (s == 0 or s > exercises.len - 1) {
+            print("unknown exercise number: {}\n", .{s});
+            std.process.exit(2);
+        }
+        const first = exercises[s - 1];
+        const ziglings_step = b.step("ziglings", b.fmt("Check ziglings starting with {s}", .{first.main_file}));
+        b.default_step = ziglings_step;
+
+        var prev_step = &header_step.step;
+        for (exercises[(s - 1)..]) |ex| {
+            const verify_stepn = ZiglingStep.create(b, ex, work_path, .normal);
+            verify_stepn.step.dependOn(prev_step);
+
+            prev_step = &verify_stepn.step;
+        }
+        ziglings_step.dependOn(prev_step);
+        return;
+    }
+
     // Normal build mode: verifies all exercises according to the recommended
     // order.
     const ziglings_step = b.step("ziglings", "Check all ziglings");
@@ -274,7 +295,7 @@ const ZiglingStep = struct {
         return self;
     }
 
-    fn make(step: *Step, prog_node: std.Progress.Node) !void {
+    fn make(step: *Step, options: Step.MakeOptions) !void {
         // NOTE: Using exit code 2 will prevent the Zig compiler to print the message:
         // "error: the following build command failed with exit code 1:..."
         const self: *ZiglingStep = @alignCast(@fieldParentPtr("step", step));
@@ -285,7 +306,7 @@ const ZiglingStep = struct {
             return;
         }
 
-        const exe_path = self.compile(prog_node) catch {
+        const exe_path = self.compile(options.progress_node) catch {
             self.printErrors();
 
             if (self.exercise.hint) |hint|
@@ -295,7 +316,7 @@ const ZiglingStep = struct {
             std.process.exit(2);
         };
 
-        self.run(exe_path.?, prog_node) catch {
+        self.run(exe_path.?, options.progress_node) catch {
             self.printErrors();
 
             if (self.exercise.hint) |hint|
@@ -436,7 +457,7 @@ const ZiglingStep = struct {
 
         zig_args.append("--listen=-") catch @panic("OOM");
 
-        return try self.step.evalZigProcess(zig_args.items, prog_node);
+        return try self.step.evalZigProcess(zig_args.items, prog_node, false);
     }
 
     fn help(self: *ZiglingStep) void {
@@ -525,7 +546,7 @@ const PrintStep = struct {
         return self;
     }
 
-    fn make(step: *Step, _: std.Progress.Node) !void {
+    fn make(step: *Step, _: Step.MakeOptions) !void {
         const self: *PrintStep = @alignCast(@fieldParentPtr("step", step));
         print("{s}", .{self.message});
     }
