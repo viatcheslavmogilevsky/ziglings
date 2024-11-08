@@ -12,7 +12,7 @@
 
 `zig build`
 
-### Run exercises sinse 109
+### Run exercises since 109
 
 `zig build -Ds=109` 
 
