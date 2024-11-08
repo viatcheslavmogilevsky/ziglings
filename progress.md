@@ -15,3 +15,7 @@
 ### Run exercises sinse 109
 
 `zig build -Ds=109` 
+
+### What is done
+
+https://github.com/viatcheslavmogilevsky/ziglings/compare/main...progress?expand=1
