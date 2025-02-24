@@ -2,7 +2,7 @@
 
 ### Current zig version
 
-`0.14.0-dev.1860+2e2927735`
+`0.14.0-dev.3298+6fe1993d8`
 
 ### How to check current vesrion
 
